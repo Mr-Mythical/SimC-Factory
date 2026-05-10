@@ -1,0 +1,9 @@
+## Interface: 120100
+## Title: Mr. Mythical: DPS Predictor
+## Notes: Predicts DPS deltas for hovered items using exported Mr. Mythical model data
+## Author: Mr. Mythical
+## Version: 0.1.0
+## SavedVariables: SIMCDPS_CONFIG
+
+ModelData.lua
+SimcDpsPredictor.lua

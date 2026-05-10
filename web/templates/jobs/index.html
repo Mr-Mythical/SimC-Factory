@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set active_page = "jobs" %}
+{% block title %}Jobs - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">Jobs</h2>
+    <a href="/jobs/launch" class="px-4 py-2 text-sm font-semibold rounded bg-amber-600 hover:bg-amber-500 text-white">
+        Launch Script
+    </a>
+</div>
+
+{% if jobs %}
+<div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
+     hx-get="/jobs/list" hx-trigger="every 3s" hx-target="#jobs-tbody" hx-swap="innerHTML">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-700 text-left">
+                <th class="px-4 py-3 text-gray-400 font-medium">Name</th>
+                <th class="px-4 py-3 text-gray-400 font-medium">Status</th>
+                <th class="px-4 py-3 text-gray-400 font-medium">Started</th>
+                <th class="px-4 py-3 text-gray-400 font-medium">Duration</th>
+                <th class="px-4 py-3 text-gray-400 font-medium"></th>
+            </tr>
+        </thead>
+        <tbody id="jobs-tbody">
+            {% include "partials/_job_rows.html" %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-gray-800 rounded-lg border border-gray-700 p-12 text-center">
+    <p class="text-gray-400 mb-4">No jobs have been launched yet.</p>
+    <a href="/jobs/launch" class="px-4 py-2 text-sm rounded bg-amber-600 hover:bg-amber-500 text-white">
+        Launch your first script
+    </a>
+</div>
+{% endif %}
+{% endblock %}

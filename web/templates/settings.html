@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% set active_page = "settings" %}
+
+{% block title %}Settings - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-amber-400">Settings</h2>
+    <p class="text-gray-400 text-sm mt-1">Configure AWS credentials and other settings.</p>
+</div>
+
+<!-- AWS Credentials -->
+<div class="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-6">
+    <h3 class="text-lg font-semibold text-white mb-1">AWS Credentials</h3>
+    <p class="text-gray-400 text-sm mb-4">
+        Saved credentials are injected into all job subprocesses. Stored locally in <code class="text-gray-300">web/.credentials.json</code> (gitignored).
+    </p>
+
+    {% if creds.get("aws_access_key_id") %}
+    <div class="mb-4 p-3 bg-green-900/20 border border-green-800/50 rounded text-sm text-green-400">
+        Credentials saved. Access Key: <code>{{ creds.aws_access_key_id[:8] }}...{{ creds.aws_access_key_id[-4:] }}</code>
+        {% if creds.get("aws_region") %} | Region: <code>{{ creds.aws_region }}</code>{% endif %}
+    </div>
+    {% else %}
+    <div class="mb-4 p-3 bg-yellow-900/20 border border-yellow-800/50 rounded text-sm text-yellow-400">
+        No credentials saved. Jobs will fall back to your local AWS config (~/.aws/).
+    </div>
+    {% endif %}
+
+    <form method="post" action="/settings/aws">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">AWS Access Key ID <span class="text-red-400">*</span></label>
+                <input type="text" name="aws_access_key_id" value="{{ creds.get('aws_access_key_id', '') }}"
+                      placeholder="Enter AWS access key ID"
+                       class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 font-mono"
+                       autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">AWS Secret Access Key <span class="text-red-400">*</span></label>
+                  <input type="password" name="aws_secret_access_key"
+                      placeholder="{% if creds.get('aws_secret_access_key') %}Leave blank to keep saved secret{% else %}Enter AWS secret access key{% endif %}"
+                       class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 font-mono"
+                       autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">AWS Session Token <span class="text-gray-500">(optional, for temporary credentials)</span></label>
+                  <input type="password" name="aws_session_token"
+                      placeholder="{% if creds.get('aws_session_token') %}Leave blank to keep saved token{% endif %}"
+                       class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 font-mono"
+                       autocomplete="off">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">AWS Region</label>
+                <input type="text" name="aws_region" value="{{ creds.get('aws_region', default_region) }}"
+                       class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 font-mono">
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="submit" class="px-4 py-2 text-sm font-semibold rounded bg-amber-600 hover:bg-amber-500 text-white">
+                Save Credentials
+            </button>
+            <button type="button" hx-get="/settings/aws/test" hx-target="#test-result" hx-swap="innerHTML"
+                    class="px-4 py-2 text-sm rounded border border-gray-600 text-gray-300 hover:bg-gray-700">
+                Test Connection
+            </button>
+            <button type="button" hx-post="/settings/aws/clear" hx-confirm="Clear saved AWS credentials?"
+                    class="px-4 py-2 text-sm rounded border border-red-800 text-red-400 hover:bg-red-900/30">
+                Clear
+            </button>
+        </div>
+    </form>
+
+    <div id="test-result"></div>
+</div>
+
+<!-- Info -->
+<div class="bg-gray-800 rounded-lg border border-gray-700 p-5">
+    <h3 class="text-lg font-semibold text-white mb-2">How it works</h3>
+    <ul class="text-sm text-gray-400 space-y-2">
+        <li><strong class="text-gray-300">Option 1 — IAM Access Keys:</strong> Create an IAM user with programmatic access, paste the keys above. Persistent, no expiration until rotated.</li>
+        <li><strong class="text-gray-300">Option 2 — Temporary Credentials:</strong> From SSO or assume-role, paste access key + secret + session token. These expire and need to be refreshed.</li>
+        <li><strong class="text-gray-300">Fallback:</strong> If no credentials are saved here, jobs fall back to your local AWS config (<code>~/.aws/config</code>, SSO cache, environment variables).</li>
+    </ul>
+</div>
+{% endblock %}

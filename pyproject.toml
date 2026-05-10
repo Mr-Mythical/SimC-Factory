@@ -1,0 +1,37 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [
+    ".venv",
+    ".aws",
+    "certs",
+    "distributed_shards",
+    "spec_profiles",
+    "training_data",
+    "local/nn_website_model",
+    "local/experiment_results",
+    "local/web_jobs",
+    "terraform/.terraform",
+]
+
+[tool.ruff.lint]
+select = ["B", "E4", "E7", "E9", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    ".venv",
+    "distributed_shards",
+    "spec_profiles",
+    "training_data",
+    "local/nn_website_model",
+    "local/experiment_results",
+    "local/web_jobs",
+]
+skips = ["B101"]

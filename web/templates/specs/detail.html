@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% set active_page = "specs" %}
+{% block title %}{{ spec.display_name }} - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <a href="/specs" class="text-xs text-gray-500 hover:text-gray-300">&larr; All Specs</a>
+        <h2 class="text-2xl font-bold mt-1">{{ spec.display_name }}</h2>
+        <p class="text-xs text-gray-500 font-mono">{{ spec.spec }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if spec.status == 'failed' %}
+        <span class="inline-block px-3 py-1 text-sm rounded bg-red-800/60 text-red-200">failed</span>
+        {% elif spec.status == 'stale' %}
+        <span class="inline-block px-3 py-1 text-sm rounded bg-red-900/50 text-red-300">stale</span>
+        {% elif spec.status == 'incomplete' %}
+        <span class="inline-block px-3 py-1 text-sm rounded bg-yellow-900/50 text-yellow-300">incomplete</span>
+        {% else %}
+        <span class="inline-block px-3 py-1 text-sm rounded bg-green-900/50 text-green-300">fresh</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if spec.error_message %}
+<div class="bg-red-950/30 border border-red-800 rounded-lg p-4 mb-6">
+    <h3 class="text-sm font-semibold text-red-300 uppercase tracking-wide">Latest Profile Error</h3>
+    <p class="text-sm text-red-200 mt-2">{{ spec.error_message }}</p>
+    {% if spec.error_source %}
+    <p class="text-xs text-gray-500 mt-2">source: {{ spec.error_source }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if spec.talent_embed_url or spec.talent_string %}
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <div>
+            <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wide">Talents Used</h3>
+            {% if spec.profile_file %}
+            <p class="text-xs text-gray-500 mt-1">{{ spec.profile_file }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% if spec.talent_embed_url %}
+    <div class="border border-gray-700 rounded overflow-hidden bg-black/20 mb-3">
+        <iframe
+            src="{{ spec.talent_embed_url }}"
+            title="{{ spec.display_name }} talents"
+            class="w-full"
+            style="height: 430px; border: 0;"
+            loading="lazy">
+        </iframe>
+    </div>
+    {% endif %}
+    {% if spec.talent_string %}
+    <p class="text-xs font-mono text-gray-400 break-all">{{ spec.talent_string }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if drift_chart and drift_chart.has_data %}
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
+    <div class="flex items-start justify-between mb-3 gap-4">
+        <div>
+            <h3 class="text-sm font-semibold text-cyan-400 uppercase tracking-wide">Profile Drift History</h3>
+            <p class="text-xs text-gray-500 mt-1">{{ drift_chart.point_count }} checks from {{ drift_chart.from_timestamp[:19] }} to {{ drift_chart.to_timestamp[:19] }}</p>
+        </div>
+        <div class="text-right text-xs">
+            <p class="text-gray-400">Median: <span class="text-gray-200">{{ "%.3f"|format(drift_chart.latest_median_abs_drift_pct) if drift_chart.latest_median_abs_drift_pct is not none else "N/A" }}%</span></p>
+            <p class="text-gray-400">Max: <span class="text-gray-200">{{ "%.3f"|format(drift_chart.latest_max_abs_drift_pct) if drift_chart.latest_max_abs_drift_pct is not none else "N/A" }}%</span></p>
+            <p class="text-gray-400">Threshold: <span class="text-gray-200">{{ "%.2f"|format(drift_chart.latest_threshold_pct) if drift_chart.latest_threshold_pct is not none else "N/A" }}%</span></p>
+        </div>
+    </div>
+
+    <div class="rounded border border-gray-700 bg-black/20 p-2">
+        <svg viewBox="0 0 760 260" class="w-full h-auto" role="img" aria-label="Drift history chart">
+            <rect x="0" y="0" width="760" height="260" fill="transparent"></rect>
+            <line x1="20" y1="20" x2="20" y2="240" stroke="#374151" stroke-width="1"></line>
+            <line x1="20" y1="240" x2="740" y2="240" stroke="#374151" stroke-width="1"></line>
+
+            {% if drift_chart.threshold_y is not none %}
+            <line x1="20" y1="{{ '%.2f'|format(drift_chart.threshold_y) }}" x2="740" y2="{{ '%.2f'|format(drift_chart.threshold_y) }}" stroke="#f59e0b" stroke-dasharray="6 4" stroke-width="1.5"></line>
+            {% endif %}
+
+            {% if drift_chart.max_polyline %}
+            <polyline points="{{ drift_chart.max_polyline }}" fill="none" stroke="#fb7185" stroke-width="2"></polyline>
+            {% endif %}
+            {% if drift_chart.median_polyline %}
+            <polyline points="{{ drift_chart.median_polyline }}" fill="none" stroke="#22d3ee" stroke-width="2.5"></polyline>
+            {% endif %}
+        </svg>
+    </div>
+
+    <div class="mt-3 flex items-center gap-4 text-[11px] text-gray-400">
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-[2px] bg-cyan-400"></span>Median abs drift %</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-[2px] bg-rose-400"></span>Max abs drift %</span>
+        <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-[2px] bg-amber-400"></span>Threshold</span>
+        <span class="ml-auto {% if drift_chart.latest_is_stale %}text-red-400{% else %}text-green-400{% endif %}">
+            {{ "Latest check: stale" if drift_chart.latest_is_stale else "Latest check: within threshold" }}
+        </span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Spec stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400">Prediction MAE</p>
+        <p class="text-2xl font-mono font-bold {% if spec.mae is not none %}{% if spec.mae > 800 %}text-red-400{% elif spec.mae > 400 %}text-yellow-400{% else %}text-green-400{% endif %}{% else %}text-gray-500{% endif %}">
+            {{ spec.mae if spec.mae is not none else "N/A" }}
+        </p>
+        {% if model and model.test_mae %}
+        <p class="text-xs text-gray-500 mt-1">Avg: {{ "%.1f"|format(model.test_mae) }}</p>
+        {% endif %}
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400">Training Samples</p>
+        <p class="text-2xl font-mono font-bold {% if spec.samples >= 500 %}text-green-400{% elif spec.samples >= 200 %}text-yellow-400{% else %}text-red-400{% endif %}">
+            {{ "{:,}".format(spec.samples) }}
+        </p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400">Staleness Drift</p>
+        <p class="text-2xl font-mono font-bold {% if spec.staleness_drift_pct is not none %}{% if spec.staleness_drift_pct > 2.0 %}text-red-400{% elif spec.staleness_drift_pct > 1.0 %}text-yellow-400{% else %}text-green-400{% endif %}{% else %}text-gray-500{% endif %}">
+            {% if spec.staleness_drift_pct is not none %}{{ "%.2f"|format(spec.staleness_drift_pct) }}%{% else %}N/A{% endif %}
+        </p>
+        {% if spec.staleness_checked_at %}
+        <p class="text-xs text-gray-500 mt-1">Checked: {{ spec.staleness_checked_at[:16] }}</p>
+        {% endif %}
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400">Last Generated</p>
+        <p class="text-sm font-mono text-gray-200 mt-1">
+            {% if spec.last_generated %}{{ spec.last_generated[:16] }}{% else %}Never{% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- Actions -->
+<h3 class="text-lg font-semibold mb-3 text-gray-300">Actions</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+    <form method="post" action="/specs/launch" hx-post="/specs/launch" hx-swap="none">
+        <input type="hidden" name="preset_id" value="small_test_run">
+        <input type="hidden" name="specs" value="{{ spec.spec }}">
+        <button type="submit" class="w-full text-left bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-amber-600 hover:bg-gray-750 transition-colors">
+            <p class="text-sm font-semibold text-amber-400">Small Test Run</p>
+            <p class="text-xs text-gray-400 mt-1">50 samples, 1000 iterations. Quick validation.</p>
+        </button>
+    </form>
+    <form method="post" action="/specs/launch" hx-post="/specs/launch" hx-swap="none">
+        <input type="hidden" name="preset_id" value="full_sim_500">
+        <input type="hidden" name="specs" value="{{ spec.spec }}">
+        <button type="submit" class="w-full text-left bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-amber-600 hover:bg-gray-750 transition-colors">
+            <p class="text-sm font-semibold text-amber-400">Full Simulation (500)</p>
+            <p class="text-xs text-gray-400 mt-1">Run to 500 samples with default settings.</p>
+        </button>
+    </form>
+    <form method="post" action="/specs/launch" hx-post="/specs/launch" hx-swap="none">
+        <input type="hidden" name="preset_id" value="quick_staleness_check">
+        <input type="hidden" name="specs" value="{{ spec.spec }}">
+        <button type="submit" class="w-full text-left bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-yellow-600 hover:bg-gray-750 transition-colors">
+            <p class="text-sm font-semibold text-yellow-400">Staleness Check</p>
+            <p class="text-xs text-gray-400 mt-1">Re-sim a sample to detect DPS drift.</p>
+        </button>
+    </form>
+    {% if spec.is_stale %}
+    <form method="post" action="/specs/launch" hx-post="/specs/launch" hx-swap="none">
+        <input type="hidden" name="preset_id" value="regenerate_stale_skip_check">
+        <input type="hidden" name="specs" value="{{ spec.spec }}">
+        <button type="submit" class="w-full text-left bg-gray-800 rounded-lg p-4 border border-red-700/50 hover:border-red-500 hover:bg-gray-750 transition-colors">
+            <p class="text-sm font-semibold text-red-400">Regenerate (Stale)</p>
+            <p class="text-xs text-gray-400 mt-1">Re-simulate all data for this stale spec. Skips drift check.</p>
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

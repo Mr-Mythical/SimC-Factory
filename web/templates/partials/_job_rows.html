@@ -1,0 +1,24 @@
+{% for job in jobs %}
+<tr class="border-b border-gray-700/50 hover:bg-gray-750">
+    <td class="px-4 py-2">
+        <a href="/jobs/{{ job.id }}" class="text-amber-400 hover:text-amber-300">{{ job.name }}</a>
+        <span class="text-xs text-gray-500 block font-mono">{{ job.id }}</span>
+    </td>
+    <td class="px-4 py-2">
+        <span class="inline-block px-2 py-0.5 text-xs rounded badge-{{ job.status }}">{{ job.status }}</span>
+    </td>
+    <td class="px-4 py-2 text-xs text-gray-400">{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+    <td class="px-4 py-2 text-xs text-gray-400 font-mono">
+        {% if job.finished_at %}
+            {{ ((job.finished_at - job.started_at).total_seconds()) | int }}s
+        {% elif job.status == 'running' %}
+            running...
+        {% else %}
+            -
+        {% endif %}
+    </td>
+    <td class="px-4 py-2 text-right">
+        <a href="/jobs/{{ job.id }}" class="text-xs text-gray-400 hover:text-white">View</a>
+    </td>
+</tr>
+{% endfor %}

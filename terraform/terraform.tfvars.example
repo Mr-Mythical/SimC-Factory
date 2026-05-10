@@ -1,0 +1,42 @@
+aws_region  = "eu-north-1"
+name_prefix = "simc-batch-array"
+
+# Use private subnets that can reach ECR/S3/CloudWatch through NAT or VPC endpoints.
+subnet_ids         = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy"]
+security_group_ids = ["sg-xxxxxxxxxxxxxxxxx"]
+
+# Optional EC2 key pair for debugging worker instances. Prefer null for normal runs.
+ec2_key_pair = null
+
+compute_type   = "SPOT"
+instance_types = ["c7i-flex.large", "m7i-flex.large"]
+min_vcpus      = 0
+max_vcpus      = 32
+
+# Replace the account ID, region, and repository if you do not derive this from scripts.
+worker_image = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/simc-batch-worker:latest"
+
+job_vcpus               = 1
+job_memory              = 1024
+worker_parallel_default = 2
+
+s3_bucket_name              = "replace-with-globally-unique-bucket-name"
+temp_object_expiration_days = 2
+log_retention_days          = 14
+
+staleness_compute_type            = "EC2"
+staleness_instance_types          = ["c7i-flex.large"]
+staleness_min_vcpus               = 0
+staleness_max_vcpus               = 2
+staleness_job_vcpus               = 1
+staleness_job_memory              = 2048
+staleness_worker_parallel_default = 1
+
+sagemaker_instance_type      = "ml.g4dn.xlarge"
+sagemaker_max_run_seconds    = 3600
+sagemaker_max_wait_seconds   = 7200
+sagemaker_tuning_max_jobs    = 50
+sagemaker_tuning_max_parallel = 3
+
+# Optional: omit this when certs/ca.pem exists locally.
+dashboard_ca_certificate_pem = ""

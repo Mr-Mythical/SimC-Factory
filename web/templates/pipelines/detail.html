@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active_page = "pipelines" %}
+
+{% block title %}{{ run.pipeline_def.name }} — Pipeline Run{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center gap-3">
+        <a href="/pipelines" class="text-gray-400 hover:text-white text-sm">&larr; Pipelines</a>
+    </div>
+    <div class="flex items-center justify-between mt-3">
+        <div>
+            <h2 class="text-2xl font-bold text-amber-400">{{ run.pipeline_def.name }}</h2>
+            <p class="text-gray-400 text-sm mt-1">Run <code class="text-gray-300">{{ run.id }}</code></p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="pipeline-status" class="inline-block px-3 py-1 text-sm rounded badge-{{ run.status }}">{{ run.status }}</span>
+            {% if run.status == "running" %}
+            <button hx-delete="/pipelines/run/{{ run.id }}" hx-target="#pipeline-status"
+                    hx-confirm="Cancel this pipeline run?"
+                    class="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-500 text-white">
+                Cancel
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Timing info -->
+<div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+    <div class="grid grid-cols-3 gap-4 text-sm">
+        <div>
+            <span class="text-gray-400">Started:</span>
+            <span class="text-gray-200 ml-1">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</span>
+        </div>
+        <div>
+            <span class="text-gray-400">Duration:</span>
+            <span class="text-gray-200 ml-1" id="pipeline-duration">
+                {% if run.finished_at %}
+                    {{ ((run.finished_at - run.started_at).total_seconds()) | int }}s
+                {% elif run.status == 'running' %}
+                    running...
+                {% else %}
+                    -
+                {% endif %}
+            </span>
+        </div>
+        <div>
+            <span class="text-gray-400">Steps:</span>
+            <span class="text-gray-200 ml-1">
+                {{ run.steps | selectattr('status', 'equalto', 'completed') | list | length }}/{{ run.steps | length }} completed
+                {% set skipped = run.steps | selectattr('status', 'equalto', 'skipped') | list | length %}
+                {% if skipped %}<span class="text-gray-500">({{ skipped }} skipped)</span>{% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Step timeline -->
+<div class="bg-gray-800 rounded-lg border border-gray-700 p-5"
+     {% if run.status == 'running' %}hx-get="/pipelines/run/{{ run.id }}/steps" hx-trigger="every 3s" hx-swap="innerHTML"{% endif %}>
+    {% include "partials/_pipeline_steps.html" %}
+</div>
+
+{% if run.status == 'running' %}
+<script>
+    // Live duration counter
+    (function() {
+        const el = document.getElementById('pipeline-duration');
+        const start = new Date('{{ run.started_at.isoformat() }}Z');
+        function update() {
+            const secs = Math.floor((Date.now() - start.getTime()) / 1000);
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
+            el.textContent = m > 0 ? m + 'm ' + s + 's' : s + 's';
+        }
+        update();
+        setInterval(update, 1000);
+    })();
+</script>
+{% endif %}
+{% endblock %}

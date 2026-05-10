@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% set active_page = "models" %}
+{% block title %}Models - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">Model History</h2>
+</div>
+
+<!-- Current active model -->
+{% if current %}
+<div class="bg-gray-800 rounded-lg p-4 border border-amber-600/50 mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold text-amber-400">Active Model</h3>
+        <span class="px-2 py-0.5 text-xs rounded bg-amber-600/30 text-amber-300">current</span>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div>
+            <p class="text-xs text-gray-400">Test MAE</p>
+            <p class="text-lg font-mono {% if current.test_mae and current.test_mae > 400 %}text-red-400{% elif current.test_mae and current.test_mae > 300 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ "%.1f"|format(current.test_mae) if current.test_mae is not none else "-" }}
+            </p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-400">Train MAE</p>
+            <p class="text-lg font-mono text-gray-200">{{ "%.1f"|format(current.train_mae) if current.train_mae is not none else "-" }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-400">Test R2</p>
+            <p class="text-lg font-mono text-gray-200">{{ "%.4f"|format(current.test_r2) if current.test_r2 is not none else "-" }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-400">Train Samples</p>
+            <p class="text-lg font-mono text-gray-200">{{ current.train_samples if current.train_samples is not none else "-" }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-400">Specs</p>
+            <p class="text-lg font-mono text-gray-200">{{ current.n_specs if current.n_specs is not none else "-" }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-400">Type</p>
+            <p class="text-lg font-mono text-gray-200">Full</p>
+        </div>
+    </div>
+    {% if current.per_spec_mae %}
+    <details class="mt-3">
+        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-300">Per-spec MAE ({{ current.per_spec_mae|length }} specs)</summary>
+        <div class="mt-2 max-h-64 overflow-y-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="px-2 py-1 text-left">Spec</th>
+                        <th class="px-2 py-1 text-right">MAE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for spec, mae in current.per_spec_mae|dictsort(by='value', reverse=true) %}
+                    <tr class="border-b border-gray-700/30">
+                        <td class="px-2 py-1 text-gray-300 font-mono">{{ spec }}</td>
+                        <td class="px-2 py-1 text-right font-mono {% if mae > 500 %}text-red-400{% elif mae > 350 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ "%.1f"|format(mae) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+</div>
+{% else %}
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
+    <p class="text-gray-400">No active model found.</p>
+</div>
+{% endif %}
+
+<!-- Snapshot history -->
+<h3 class="text-lg font-semibold mb-3">Previous Versions</h3>
+{% if snapshots %}
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-700 text-gray-400 text-xs uppercase">
+                <th class="px-4 py-2 text-left">Snapshot</th>
+                <th class="px-4 py-2 text-left">Label</th>
+                <th class="px-4 py-2 text-right">Test MAE</th>
+                <th class="px-4 py-2 text-right">Train MAE</th>
+                <th class="px-4 py-2 text-right">Test R2</th>
+                <th class="px-4 py-2 text-right">Samples</th>
+                <th class="px-4 py-2 text-right">Specs</th>
+                <th class="px-4 py-2 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in snapshots %}
+            <tr class="border-b border-gray-700/50 hover:bg-gray-750 cursor-pointer
+                {% if s.test_mae is not none and current and current.test_mae is not none and s.test_mae < current.test_mae %}bg-green-900/10{% endif %}"
+                onclick="document.getElementById('detail-{{ loop.index }}').toggleAttribute('open')">
+                <td class="px-4 py-2">
+                    <span class="text-gray-200 font-mono text-xs">{{ s.dirname }}</span>
+                    {% if s.timestamp %}
+                    <span class="text-xs text-gray-500 block">{{ s.timestamp[:19] }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-gray-300 text-xs">{{ s.label }}</td>
+                <td class="px-4 py-2 text-right font-mono
+                    {% if s.test_mae is not none and current and current.test_mae is not none %}
+                        {% if s.test_mae < current.test_mae %}text-green-400{% elif s.test_mae > current.test_mae %}text-red-400{% else %}text-gray-200{% endif %}
+                    {% else %}text-gray-200{% endif %}">
+                    {{ "%.1f"|format(s.test_mae) if s.test_mae is not none else "-" }}
+                    {% if s.test_mae is not none and current and current.test_mae is not none %}
+                        {% set diff = s.test_mae - current.test_mae %}
+                        <span class="text-xs {% if diff < 0 %}text-green-500{% elif diff > 0 %}text-red-500{% endif %}">
+                            ({{ "%+.1f"|format(diff) }})
+                        </span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-2 text-right font-mono text-gray-200">{{ "%.1f"|format(s.train_mae) if s.train_mae is not none else "-" }}</td>
+                <td class="px-4 py-2 text-right font-mono text-gray-200">{{ "%.4f"|format(s.test_r2) if s.test_r2 is not none else "-" }}</td>
+                <td class="px-4 py-2 text-right font-mono text-gray-200">{{ s.train_samples if s.train_samples is not none else "-" }}</td>
+                <td class="px-4 py-2 text-right font-mono text-gray-200">{{ s.n_specs if s.n_specs is not none else "-" }}</td>
+                <td class="px-4 py-2 text-right" onclick="event.stopPropagation()">
+                    <form method="post" action="/models/restore"
+                          hx-post="/models/restore" hx-swap="none"
+                          onsubmit="return confirm('Restore this snapshot? The current model will be snapshotted first.')">
+                        <input type="hidden" name="dirname" value="{{ s.dirname }}">
+                        <button type="submit" class="px-2 py-0.5 text-xs rounded bg-amber-700 hover:bg-amber-600 text-white">
+                            Restore
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% if s.per_spec_mae %}
+            <tr>
+                <td colspan="8" class="p-0">
+                    <details id="detail-{{ loop.index }}">
+                        <summary class="hidden"></summary>
+                        <div class="px-4 py-2 bg-gray-850">
+                            <p class="text-xs text-gray-400 mb-2">Per-spec MAE ({{ s.per_spec_mae|length }} specs)</p>
+                            <div class="max-h-48 overflow-y-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="border-b border-gray-700 text-gray-500">
+                                            <th class="px-2 py-1 text-left">Spec</th>
+                                            <th class="px-2 py-1 text-right">MAE</th>
+                                            {% if current and current.per_spec_mae %}
+                                            <th class="px-2 py-1 text-right">vs Current</th>
+                                            {% endif %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for spec, mae in s.per_spec_mae|dictsort(by='value', reverse=true) %}
+                                        <tr class="border-b border-gray-700/20">
+                                            <td class="px-2 py-0.5 text-gray-300 font-mono">{{ spec }}</td>
+                                            <td class="px-2 py-0.5 text-right font-mono {% if mae > 500 %}text-red-400{% elif mae > 350 %}text-yellow-400{% else %}text-green-400{% endif %}">{{ "%.1f"|format(mae) }}</td>
+                                            {% if current and current.per_spec_mae %}
+                                            <td class="px-2 py-0.5 text-right font-mono">
+                                                {% if spec in current.per_spec_mae %}
+                                                    {% set delta = mae - current.per_spec_mae[spec] %}
+                                                    <span class="{% if delta < 0 %}text-green-500{% elif delta > 0 %}text-red-500{% else %}text-gray-500{% endif %}">
+                                                        {{ "%+.1f"|format(delta) }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-gray-600">-</span>
+                                                {% endif %}
+                                            </td>
+                                            {% endif %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </details>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <p class="text-gray-400">No snapshots yet. Snapshots are automatically created before each training run overwrites the model.</p>
+</div>
+{% endif %}
+{% endblock %}

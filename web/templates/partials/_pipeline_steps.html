@@ -1,0 +1,64 @@
+{% set status_colors = {
+    'completed': 'bg-green-500',
+    'running': 'bg-blue-500',
+    'failed': 'bg-red-500',
+    'skipped': 'bg-purple-500',
+    'pending': 'bg-gray-600',
+    'cancelled': 'bg-gray-500',
+} %}
+
+{% set connector_colors = {
+    'completed': 'bg-green-500',
+    'failed': 'bg-red-500',
+    'skipped': 'bg-purple-500/50',
+    'running': 'bg-blue-500/50',
+    'pending': 'bg-gray-700',
+    'cancelled': 'bg-gray-600',
+} %}
+
+<div class="space-y-0">
+{% for step in run.steps %}
+    {% set parallel = step.step_def.parallel_with %}
+
+    <div class="flex items-start gap-4">
+        <!-- Timeline dot and connector -->
+        <div class="flex flex-col items-center w-6 flex-shrink-0">
+            <div class="w-3 h-3 rounded-full mt-1.5 {{ status_colors.get(step.status, 'bg-gray-600') }}
+                        {% if step.status == 'running' %}animate-pulse{% endif %}"></div>
+            {% if not loop.last %}
+            <div class="w-0.5 flex-1 min-h-[2.5rem] {{ connector_colors.get(step.status, 'bg-gray-700') }}"></div>
+            {% endif %}
+        </div>
+
+        <!-- Step content -->
+        <div class="flex-1 pb-4 {% if loop.last %}pb-0{% endif %}">
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-medium {% if step.status == 'skipped' %}text-gray-500 line-through{% elif step.status == 'pending' %}text-gray-500{% else %}text-gray-200{% endif %}">
+                    {{ step.step_def.name }}
+                </span>
+                <span class="inline-block px-2 py-0.5 text-xs rounded badge-{{ step.status }}">{{ step.status }}</span>
+                {% if parallel %}
+                <span class="text-xs text-gray-500 border border-gray-600 rounded px-1.5 py-0.5">parallel</span>
+                {% endif %}
+                {% if step.step_def.condition %}
+                <span class="text-xs text-gray-500 border border-dashed border-gray-600 rounded px-1.5 py-0.5">conditional</span>
+                {% endif %}
+            </div>
+
+            <div class="text-xs text-gray-500 mt-1 flex gap-4">
+                {% if step.started_at %}
+                <span>Started: {{ step.started_at.strftime('%H:%M:%S') }}</span>
+                {% endif %}
+                {% if step.finished_at and step.started_at %}
+                <span>Duration: {{ ((step.finished_at - step.started_at).total_seconds()) | int }}s</span>
+                {% elif step.status == 'running' %}
+                <span>Running...</span>
+                {% endif %}
+                {% if step.job_id %}
+                <a href="/jobs/{{ step.job_id }}" class="text-amber-400/70 hover:text-amber-400">View job &rarr;</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>

@@ -1,0 +1,28 @@
+{% for run in runs %}
+<tr class="border-b border-gray-700/50 hover:bg-gray-750">
+    <td class="px-4 py-2">
+        <a href="/pipelines/run/{{ run.id }}" class="text-amber-400 hover:text-amber-300">{{ run.pipeline_def.name }}</a>
+        <span class="text-xs text-gray-500 block font-mono">{{ run.id }}</span>
+    </td>
+    <td class="px-4 py-2">
+        <span class="inline-block px-2 py-0.5 text-xs rounded badge-{{ run.status }}">{{ run.status }}</span>
+    </td>
+    <td class="px-4 py-2 text-xs text-gray-400">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+    <td class="px-4 py-2 text-xs text-gray-400">
+        {% if run.finished_at %}
+            {{ ((run.finished_at - run.started_at).total_seconds()) | int }}s
+        {% elif run.status == 'running' %}
+            running...
+        {% else %}
+            -
+        {% endif %}
+    </td>
+    <td class="px-4 py-2 text-xs text-gray-400">
+        {% set done = run.steps | selectattr('status', 'in', ['completed', 'skipped', 'failed']) | list | length %}
+        {{ done }}/{{ run.steps | length }} steps
+    </td>
+    <td class="px-4 py-2 text-right">
+        <a href="/pipelines/run/{{ run.id }}" class="text-xs text-gray-400 hover:text-white">View</a>
+    </td>
+</tr>
+{% endfor %}

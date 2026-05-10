@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mr. Mythical: SimC Factory{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css?v={{ static_version }}">
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+    <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js" defer></script>
+</head>
+<body class="h-full bg-gray-900 text-gray-100">
+    <div class="flex h-full">
+        <!-- Sidebar -->
+        <nav class="w-56 bg-gray-800 border-r border-gray-700 flex flex-col fixed h-full">
+            <div class="p-4 border-b border-gray-700">
+                <h1 class="text-lg font-bold text-amber-400">Mr. Mythical</h1>
+                <p class="text-xs text-gray-400 mt-1">SimC Factory</p>
+            </div>
+            <div class="flex-1 py-4">
+                <a href="/" class="flex items-center px-4 py-2 text-sm hover:bg-gray-700 {% if active_page == 'dashboard' %}bg-gray-700 text-amber-400{% else %}text-gray-300{% endif %}">
+                    <span class="w-5 mr-2 text-center">&#9632;</span> Dashboard
+                </a>
+                <a href="/specs" class="flex items-center px-4 py-2 text-sm hover:bg-gray-700 {% if active_page == 'specs' %}bg-gray-700 text-amber-400{% else %}text-gray-300{% endif %}">
+                    <span class="w-5 mr-2 text-center">&#9642;</span> Spec Data
+                </a>
+                <a href="/jobs" class="flex items-center px-4 py-2 text-sm hover:bg-gray-700 {% if active_page == 'jobs' %}bg-gray-700 text-amber-400{% else %}text-gray-300{% endif %}">
+                    <span class="w-5 mr-2 text-center">&#9654;</span> Jobs
+                </a>
+                <a href="/pipelines" class="flex items-center px-4 py-2 text-sm hover:bg-gray-700 {% if active_page == 'pipelines' %}bg-gray-700 text-amber-400{% else %}text-gray-300{% endif %}">
+                    <span class="w-5 mr-2 text-center">&#9776;</span> Pipelines
+                </a>
+                <a href="/models" class="flex items-center px-4 py-2 text-sm hover:bg-gray-700 {% if active_page == 'models' %}bg-gray-700 text-amber-400{% else %}text-gray-300{% endif %}">
+                    <span class="w-5 mr-2 text-center">&#9733;</span> Models
+                </a>
+                <a href="/jobs/launch" class="flex items-center px-4 py-2 mt-4 mx-3 text-sm font-semibold rounded bg-amber-600 hover:bg-amber-500 text-white justify-center">
+                    Launch Script
+                </a>
+            </div>
+            <div class="p-4 border-t border-gray-700 text-xs text-gray-500">
+                Internal Ops
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="flex-1 ml-56 overflow-y-auto">
+            <div class="p-6 max-w-7xl mx-auto">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>

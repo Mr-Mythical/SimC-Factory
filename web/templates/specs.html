@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set active_page = "specs" %}
+{% block title %}Spec Data - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">Spec Data</h2>
+    <div class="flex gap-2">
+        <form method="post" action="/specs/launch" class="inline"
+              hx-post="/specs/launch" hx-swap="none">
+            <input type="hidden" name="preset_id" value="quick_staleness_check">
+            <input type="hidden" name="specs" value="existing">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded bg-yellow-700 hover:bg-yellow-600 text-white">
+                Staleness Check
+            </button>
+        </form>
+        <form method="post" action="/specs/launch" class="inline"
+              hx-post="/specs/launch" hx-swap="none">
+            <input type="hidden" name="preset_id" value="boost_worst_specs">
+            <input type="hidden" name="specs" value="all">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded bg-purple-700 hover:bg-purple-600 text-white">
+                Boost Worst Specs
+            </button>
+        </form>
+        <form method="post" action="/specs/launch" class="inline"
+              hx-post="/specs/launch" hx-swap="none">
+            <input type="hidden" name="preset_id" value="regenerate_stale">
+            <input type="hidden" name="specs" value="all">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded bg-red-700 hover:bg-red-600 text-white">
+                Regenerate Stale
+            </button>
+        </form>
+        <form method="post" action="/specs/launch" class="inline"
+              hx-post="/specs/launch" hx-swap="none">
+            <input type="hidden" name="preset_id" value="regenerate_stale_skip_check">
+            <input type="hidden" name="specs" value="all">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded bg-red-800 hover:bg-red-700 text-white">
+                Regen Stale (Skip Check)
+            </button>
+        </form>
+        <a href="/jobs/launch?preset=full_sim_500" class="px-3 py-1.5 text-xs rounded bg-amber-700 hover:bg-amber-600 text-white">
+            Full Simulation
+        </a>
+    </div>
+</div>
+
+<!-- Model training summary -->
+{% if model %}
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Test MAE</p>
+        <p class="text-lg font-mono font-bold {% if model.test_mae and model.test_mae < 500 %}text-green-400{% elif model.test_mae and model.test_mae < 800 %}text-yellow-400{% else %}text-red-400{% endif %}">
+            {{ "%.1f"|format(model.test_mae) if model.test_mae else "N/A" }}
+        </p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Train MAE</p>
+        <p class="text-lg font-mono font-bold text-gray-200">{{ "%.1f"|format(model.train_mae) if model.train_mae else "N/A" }}</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Test R&sup2;</p>
+        <p class="text-lg font-mono font-bold text-blue-400">{{ "%.4f"|format(model.test_r2) if model.test_r2 else "N/A" }}</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">CV MAE ({{ model.cv_folds }}-fold)</p>
+        <p class="text-lg font-mono font-bold text-gray-200">{{ "%.1f"|format(model.cv_mae) if model.cv_mae else "N/A" }}</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Train / Test Samples</p>
+        <p class="text-lg font-mono font-bold text-gray-200">{{ "{:,}".format(model.train_samples) if model.train_samples else "?" }} / {{ "{:,}".format(model.test_samples) if model.test_samples else "?" }}</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Architecture</p>
+        <p class="text-sm font-mono text-gray-200">{{ model.hidden_dims | join(" > ") if model.hidden_dims else "N/A" }}</p>
+        <p class="text-xs text-gray-500">{{ model.n_specs or "?" }} specs, {{ model.n_features or "?" }} features</p>
+    </div>
+</div>
+
+<!-- Model hyperparameters (collapsible) -->
+{% if model.best_params %}
+<details class="mb-6">
+    <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-300">
+        Model Hyperparameters
+        {% if model.training_time_seconds %}
+        <span class="text-gray-600 ml-2">(trained in {{ "%.0f"|format(model.training_time_seconds) }}s on {{ "GPU" if model.used_gpu else "CPU" }})</span>
+        {% endif %}
+    </summary>
+    <div class="mt-2 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+        {% for key, val in model.best_params.items() %}
+        <div class="bg-gray-800/50 rounded px-3 py-2 border border-gray-700/50">
+            <p class="text-xs text-gray-500">{{ key }}</p>
+            <p class="text-sm font-mono text-gray-300">{{ val }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</details>
+{% endif %}
+{% endif %}
+
+<!-- Summary bar -->
+<div class="mb-4 flex items-center justify-between">
+    <p class="text-sm text-gray-400">
+        {{ specs | length }} specializations
+        {% if status_counts.get('failed', 0) > 0 %}
+        <span class="text-red-300 ml-2">{{ status_counts.failed }} failed</span>
+        {% endif %}
+        {% if status_counts.get('stale', 0) > 0 %}
+        <span class="text-red-400 ml-2">{{ status_counts.stale }} stale</span>
+        {% endif %}
+        {% if status_counts.get('incomplete', 0) > 0 %}
+        <span class="text-yellow-400 ml-2">{{ status_counts.incomplete }} incomplete</span>
+        {% endif %}
+        {% if status_counts.get('fresh', 0) > 0 %}
+        <span class="text-green-400 ml-2">{{ status_counts.fresh }} fresh</span>
+        {% endif %}
+    </p>
+    <div class="text-sm text-gray-400">
+        Avg MAE: <span class="text-white font-mono">{{ "%.1f"|format(avg_mae) if avg_mae else "N/A" }}</span>
+        | Total samples: <span class="text-white font-mono">{{ "{:,}".format(total_samples) }}</span>
+    </div>
+</div>
+
+<!-- Spec table -->
+<div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-700 text-left">
+                <th class="sortable px-4 py-3 text-gray-400 font-medium"
+                    hx-get="/specs/table?sort=spec&dir={{ 'desc' if sort_col == 'spec' and sort_dir == 'asc' else 'asc' }}"
+                    hx-target="#spec-tbody" hx-swap="innerHTML">
+                    Spec {% if sort_col == 'spec' %}{{ '&#9650;' if sort_dir == 'asc' else '&#9660;' }}{% endif %}
+                </th>
+                <th class="sortable px-4 py-3 text-gray-400 font-medium text-right"
+                    hx-get="/specs/table?sort=mae&dir={{ 'asc' if sort_col == 'mae' and sort_dir == 'desc' else 'desc' }}"
+                    hx-target="#spec-tbody" hx-swap="innerHTML">
+                    MAE {% if sort_col == 'mae' %}{{ '&#9650;' if sort_dir == 'asc' else '&#9660;' }}{% endif %}
+                </th>
+                <th class="sortable px-4 py-3 text-gray-400 font-medium text-right"
+                    hx-get="/specs/table?sort=samples&dir={{ 'asc' if sort_col == 'samples' and sort_dir == 'desc' else 'desc' }}"
+                    hx-target="#spec-tbody" hx-swap="innerHTML">
+                    Samples {% if sort_col == 'samples' %}{{ '&#9650;' if sort_dir == 'asc' else '&#9660;' }}{% endif %}
+                </th>
+                <th class="sortable px-4 py-3 text-gray-400 font-medium text-right"
+                    hx-get="/specs/table?sort=drift&dir={{ 'asc' if sort_col == 'drift' and sort_dir == 'desc' else 'desc' }}"
+                    hx-target="#spec-tbody" hx-swap="innerHTML">
+                    Drift {% if sort_col == 'drift' %}{{ '&#9650;' if sort_dir == 'asc' else '&#9660;' }}{% endif %}
+                </th>
+                <th class="sortable px-4 py-3 text-gray-400 font-medium text-center"
+                    hx-get="/specs/table?sort=status&dir={{ 'desc' if sort_col == 'status' and sort_dir == 'asc' else 'asc' }}"
+                    hx-target="#spec-tbody" hx-swap="innerHTML">
+                    Status {% if sort_col == 'status' %}{{ '&#9650;' if sort_dir == 'asc' else '&#9660;' }}{% endif %}
+                </th>
+                <th class="px-4 py-3 text-gray-400 font-medium text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="spec-tbody">
+            {% include "partials/_spec_rows.html" %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

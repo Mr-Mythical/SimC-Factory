@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-quality:
+    name: Python quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r web/requirements.txt -r requirements-dev.txt
+
+      - name: Compile Python files
+        run: python -m compileall -q web local sagemaker scripts run_web.py
+
+      - name: Ruff lint
+        run: ruff check web scripts tests run_web.py
+
+      - name: Bandit security scan
+        run: bandit -q -r web scripts run_web.py --severity-level medium --confidence-level medium
+
+      - name: Dependency vulnerability audit
+        run: pip-audit --progress-spinner off -r web/requirements.txt -r local/requirements.txt -r sagemaker/requirements.txt
+
+      - name: Unit and smoke tests
+        run: pytest
+
+  terraform-validate:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: terraform
+        run: terraform validate

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+{% block title %}Dashboard - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+
+<!-- Metric Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Total Samples</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ "{:,}".format(total_samples) }}</p>
+        <p class="text-xs text-gray-500 mt-1">across {{ spec_count }} specs</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Spec Count</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ spec_count }}</p>
+        <p class="text-xs text-gray-500 mt-1">unique specializations</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Stale Specs</p>
+        <p class="text-3xl font-bold {% if stale_count > 0 %}text-red-400{% else %}text-green-400{% endif %} mt-1">{{ stale_count }}</p>
+        <p class="text-xs text-gray-500 mt-1">need re-simulation</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Production CV MAE</p>
+        <p class="text-3xl font-bold text-amber-400 mt-1">{{ "%.1f"|format(cv_mae) if cv_mae else "N/A" }}</p>
+        <p class="text-xs text-gray-500 mt-1">cross-validation mean abs error</p>
+    </div>
+</div>
+
+{% if profile_warnings %}
+<div class="mb-8">
+    <h3 class="text-sm font-semibold text-red-300 uppercase tracking-wide mb-3">Profile Warnings</h3>
+    <div class="space-y-3">
+        {% for w in profile_warnings %}
+        <div class="bg-red-950/30 border border-red-800 rounded-lg p-4">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-sm font-semibold text-red-200">{{ w.profile_name }}</p>
+                    <p class="text-xs text-red-400 mt-1">{{ w.message }}</p>
+                    <p class="text-[11px] text-gray-500 mt-1">source: {{ w.source }}</p>
+                    {% if w.profile_file %}
+                    <p class="text-[11px] text-gray-500 mt-1">profile: {{ w.profile_file }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <form method="post" action="/specs/launch">
+                        <input type="hidden" name="preset_id" value="small_test_run">
+                        <input type="hidden" name="specs" value="{{ w.profile_name }}">
+                        <input type="hidden" name="profile_source" value="simc">
+                        <button class="px-3 py-1 text-xs bg-amber-700 hover:bg-amber-600 rounded border border-amber-600" type="submit">
+                            Retry with SimC profile
+                        </button>
+                    </form>
+                    <form method="post" action="/specs/launch">
+                        <input type="hidden" name="preset_id" value="small_test_run">
+                        <input type="hidden" name="specs" value="{{ w.profile_name }}">
+                        <input type="hidden" name="profile_source" value="custom">
+                        <button class="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded border border-gray-600" type="submit">
+                            Retry with custom profile
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Model Info + Hyperparams -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    {% if model %}
+    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-4">Model Info</h3>
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dt class="text-gray-400">Production Trial</dt>
+            <dd class="text-white">#{{ model.production_trial_number }}</dd>
+            <dt class="text-gray-400">Architecture</dt>
+            <dd class="text-white">{{ model.hidden_dims | join(" > ") }} > 1</dd>
+            <dt class="text-gray-400">Device</dt>
+            <dd class="text-white">{{ model.device }}{% if model.used_gpu %} (GPU){% endif %}</dd>
+            <dt class="text-gray-400">Optimization Trials</dt>
+            <dd class="text-white">{{ model.optimization_trials }}</dd>
+            <dt class="text-gray-400">Optimization Time</dt>
+            <dd class="text-white">{{ "%.1f"|format((model.optimization_time_seconds or 0) / 3600) }}h</dd>
+            <dt class="text-gray-400">Training Time</dt>
+            <dd class="text-white">{{ "%.1f"|format((model.training_time_seconds or 0) / 60) }}m</dd>
+            <dt class="text-gray-400">Ensemble Top-K</dt>
+            <dd class="text-white">{{ model.ensemble_top_k }}</dd>
+            <dt class="text-gray-400">Test MAE (prod)</dt>
+            <dd class="text-white">{{ "%.1f"|format(model.prod_test_mae) if model.prod_test_mae else "N/A" }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+
+    {% if best_params %}
+    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-4">Best Hyperparameters</h3>
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {% for key, val in best_params.items() %}
+            <dt class="text-gray-400">{{ key }}</dt>
+            <dd class="text-white font-mono text-xs">{{ val }}</dd>
+            {% endfor %}
+        </dl>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Actions -->
+<div class="mb-8">
+    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick Actions</h3>
+    <div class="flex flex-wrap gap-3">
+        <a href="/jobs/launch?preset=quick_staleness_check" class="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded border border-gray-600">Check Staleness</a>
+        <a href="/jobs/launch?preset=boost_worst_specs" class="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded border border-gray-600">Boost Worst Specs</a>
+        <a href="/jobs/launch?preset=sagemaker_train" class="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded border border-gray-600">SageMaker Train</a>
+        <a href="/jobs/launch?preset=small_test_run" class="px-4 py-2 text-sm bg-amber-700 hover:bg-amber-600 rounded border border-amber-600">Test Run</a>
+    </div>
+</div>
+
+<!-- Drift Visualization -->
+<div class="mb-8">
+    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Drift Over Time</h3>
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        {% if drift and drift.has_plot %}
+        <img src="/plots/{{ drift.plot_name }}" alt="Drift Over Time" class="w-full h-auto" loading="lazy">
+        {% else %}
+        <div class="p-6 text-sm text-gray-400">Drift plot not available yet. Run a staleness check to generate it.</div>
+        {% endif %}
+        {% if drift and drift.latest_check_timestamp %}
+        <div class="p-4 border-t border-gray-700 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Latest Check</p>
+                <p class="text-gray-200">{{ drift.latest_check_timestamp[:19] }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Latest Spec</p>
+                <p class="text-gray-200 font-mono text-xs">{{ drift.latest_spec }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Median Abs Drift</p>
+                <p class="{% if drift.latest_median_abs_drift_pct and drift.latest_threshold_pct and drift.latest_median_abs_drift_pct > drift.latest_threshold_pct %}text-red-400{% else %}text-green-400{% endif %}">
+                    {{ "%.3f"|format(drift.latest_median_abs_drift_pct) if drift.latest_median_abs_drift_pct is not none else "N/A" }}%
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Max Abs Drift</p>
+                <p class="{% if drift.latest_max_abs_drift_pct and drift.latest_threshold_pct and drift.latest_max_abs_drift_pct > drift.latest_threshold_pct %}text-red-400{% else %}text-green-400{% endif %}">
+                    {{ "%.3f"|format(drift.latest_max_abs_drift_pct) if drift.latest_max_abs_drift_pct is not none else "N/A" }}%
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Threshold</p>
+                <p class="text-gray-200">{{ "%.2f"|format(drift.latest_threshold_pct) if drift.latest_threshold_pct is not none else "N/A" }}%</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Stale</p>
+                <p class="{% if drift.latest_is_stale %}text-red-400{% else %}text-green-400{% endif %}">
+                    {{ "Yes" if drift.latest_is_stale else "No" }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">SimC Version</p>
+                <p class="text-gray-200">{{ drift.latest_simc_version or "N/A" }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Git Revision</p>
+                <p class="text-gray-200 font-mono text-xs">{{ drift.latest_simc_git_revision or "N/A" }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Evaluation Plots -->
+{% if plots %}
+<div>
+    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Evaluation Plots</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for plot in plots[:6] %}
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <img src="/plots/{{ plot }}" alt="{{ plot }}" class="w-full h-auto" loading="lazy">
+            <p class="text-xs text-gray-500 p-2 text-center">{{ plot | replace('_', ' ') | replace('.png', '') }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if plots | length > 6 %}
+    <details class="mt-4">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-300">Show {{ plots | length - 6 }} more plots</summary>
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
+            {% for plot in plots[6:] %}
+            <div class="bg-gray-800 rounded border border-gray-700 overflow-hidden">
+                <img src="/plots/{{ plot }}" alt="{{ plot }}" class="w-full h-auto" loading="lazy">
+                <p class="text-xs text-gray-500 p-1 text-center truncate">{{ plot | replace('_', ' ') | replace('.png', '') }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

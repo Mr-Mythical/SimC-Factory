@@ -1,0 +1,52 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+certs/
+.aws/
+web/.credentials.json
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Terraform local state
+terraform/.terraform/
+terraform/terraform.tfstate*
+terraform/terraform.tfvars
+terraform/*.tfplan
+terraform/crash.log
+terraform/crash.*.log
+!terraform/terraform.tfvars.example
+
+# Generated simulation and model artifacts
+all_specs_training_data.csv
+profile_metadata.json
+training_data/
+distributed_shards/
+spec_profiles/
+local/nn_website_model/
+local/experiment_results/
+local/web_jobs/
+local/generator_mismatch_log.jsonl
+local/pipeline_schedules.json
+local/profile_metadata.json
+sagemaker/best_hyperparameters.json
+
+# Scratch files
+tmp_*.py
+=3.10
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

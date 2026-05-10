@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% set active_page = "jobs" %}
+{% block title %}{{ job.name }} - Mr. Mythical: SimC Factory{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <a href="/jobs" class="text-xs text-gray-500 hover:text-gray-300">&larr; All Jobs</a>
+        <h2 class="text-2xl font-bold mt-1">{{ job.name }}</h2>
+        <p class="text-xs text-gray-500 font-mono">{{ job.id }}</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span class="inline-block px-3 py-1 text-sm rounded badge-{{ job.status }}" id="status-badge">{{ job.status }}</span>
+        {% if job.status == 'running' %}
+        <button hx-delete="/jobs/{{ job.id }}" hx-swap="none"
+            class="px-3 py-1 text-sm rounded bg-red-700 hover:bg-red-600 text-white"
+            onclick="return confirm('Cancel this job?')">
+            Cancel
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Job metadata -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Started</p>
+        <p class="text-sm text-white">{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Duration</p>
+        <p class="text-sm text-white" id="duration">
+            {% if job.finished_at %}
+                {{ ((job.finished_at - job.started_at).total_seconds()) | int }}s
+            {% elif job.status == 'running' %}
+                <span data-started="{{ job.started_at.isoformat() }}">calculating...</span>
+            {% else %}
+                -
+            {% endif %}
+        </p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Exit Code</p>
+        <p class="text-sm text-white">{{ job.exit_code if job.exit_code is not none else '-' }}</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700">
+        <p class="text-xs text-gray-400">Log Lines</p>
+        <p class="text-sm text-white" id="line-count">{{ job.log_lines | length }}</p>
+    </div>
+</div>
+
+<!-- Command -->
+<details class="mb-4">
+    <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-300">Command</summary>
+    <pre class="text-xs font-mono text-gray-400 bg-gray-800 p-3 mt-1 rounded border border-gray-700 overflow-x-auto">{{ command }}</pre>
+</details>
+
+<!-- Log viewer -->
+<div class="bg-gray-950 rounded-lg border border-gray-700 overflow-hidden">
+    <div class="px-4 py-2 bg-gray-800 border-b border-gray-700 flex items-center justify-between">
+        <span class="text-xs text-gray-400">Output</span>
+        {% if job.status == 'running' %}
+        <span class="text-xs text-blue-400 animate-pulse">Live</span>
+        {% endif %}
+    </div>
+    {% if job.status == 'running' %}
+    <div id="sse-container" hx-ext="sse" sse-connect="/jobs/{{ job.id }}/logs">
+        <div id="log-output" class="log-viewer p-4 h-[32rem] overflow-y-auto overflow-x-auto"
+             sse-swap="message" hx-swap="beforeend scroll:bottom">
+        </div>
+        {# Hidden sink for the 'done' event — triggers page reload via JS #}
+        <div id="sse-done-sink" sse-swap="done" hx-swap="none" style="display:none"></div>
+    </div>
+    {% else %}
+    <div id="log-output" class="log-viewer p-4 h-[32rem] overflow-y-auto overflow-x-auto">
+        {% for line in job.log_lines %}
+<div class="log-line">{{ line }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+{% if job.status == 'running' %}
+<script>
+// Live duration counter
+(function() {
+    const el = document.querySelector('#duration span[data-started]');
+    if (!el) return;
+    const started = new Date(el.dataset.started);
+    setInterval(() => {
+        const secs = Math.floor((Date.now() - started.getTime()) / 1000);
+        const mins = Math.floor(secs / 60);
+        const hrs = Math.floor(mins / 60);
+        if (hrs > 0) el.textContent = hrs + 'h ' + (mins % 60) + 'm ' + (secs % 60) + 's';
+        else if (mins > 0) el.textContent = mins + 'm ' + (secs % 60) + 's';
+        else el.textContent = secs + 's';
+    }, 1000);
+})();
+
+// Auto-scroll log (unless user scrolled up)
+(function() {
+    const logEl = document.getElementById('log-output');
+    let userScrolled = false;
+    logEl.addEventListener('scroll', () => {
+        userScrolled = logEl.scrollTop + logEl.clientHeight < logEl.scrollHeight - 60;
+    });
+    const observer = new MutationObserver(() => {
+        if (!userScrolled) logEl.scrollTop = logEl.scrollHeight;
+        document.getElementById('line-count').textContent = logEl.querySelectorAll('.log-line').length;
+    });
+    observer.observe(logEl, { childList: true, subtree: true });
+})();
+
+// Refresh page when job finishes (SSE 'done' event or connection close)
+let reloading = false;
+function reloadOnce() {
+    if (reloading) return;
+    reloading = true;
+    // Close SSE to prevent HTMX auto-reconnect replaying lines
+    const sseContainer = document.getElementById('sse-container');
+    if (sseContainer) {
+        // Remove the SSE extension to kill the EventSource
+        sseContainer.removeAttribute('hx-ext');
+        sseContainer.removeAttribute('sse-connect');
+    }
+    setTimeout(() => window.location.reload(), 800);
+}
+
+// The 'done' SSE event triggers a swap on #sse-done-sink; listen for that
+document.getElementById('sse-done-sink').addEventListener('htmx:beforeSwap', () => reloadOnce());
+// Fallback: SSE connection error/close also triggers reload
+document.body.addEventListener('htmx:sseError', () => reloadOnce());
+document.body.addEventListener('htmx:sseClose', () => reloadOnce());
+</script>
+{% endif %}
+{% endblock %}
